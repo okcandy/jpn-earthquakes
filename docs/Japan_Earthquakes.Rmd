@@ -1,0 +1,127 @@
+---
+title: "Japan Earthquakes"
+author: Okoth C.
+output: html_notebook
+date: 2022-06-29
+---
+
+### Visualizing Earthquakes in Japan from 2001-2018
+
+```{r}
+# Load libraries
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(leaflet)
+library(leaflet.extras)
+library(rgdal)
+library(skimr)
+```
+
+#### Data overview and summary
+
+```{r}
+# Load data
+earthquakes <- read_csv('C:/Users/candy/Documents/R-PROJECTS/JapanEarthquakes/Japan earthquakes 2001 - 2018.csv')
+```
+
+```{r}
+# Data overview
+earthquakes %>%
+  head()%>%
+  kable()
+```
+
+```{r}
+# Data summary
+skim(earthquakes)
+```
+
+#### Analyzing Strong Earthquakes (where magnitude > 6)
+
+```{r}
+# Overview of the strong earthquakes with a magnitude greater than 6
+strong_earthquakes <- earthquakes %>%
+  filter(mag >= 6)
+```
+
+```{r}
+strong_earthquakes%>%
+  head()%>%
+  kable()
+```
+
+#### Mapping out the earthquakes
+```{r}
+# Japan coordinates
+japan_lat <- 35.652832
+japan_lng <- 139.839478
+
+# Plotting strong earthquakes
+map <- leaflet(width = '100%') %>%
+  setView(lng = japan_lng, lat = japan_lat, zoom = 5) %>%
+  addProviderTiles("Esri.WorldStreetMap") %>%
+  addCircles(
+    data = strong_earthquakes,
+    radius = strong_earthquakes$mag
+  )
+
+map
+  
+```
+
+
+#### Adding Marker Size and Popups
+```{r}
+# Setting marker size to distinguish magnitudes
+# marker_radius <- square root(10^magnitude) * constant
+# popups added for additional details
+circle_radius <- sqrt(10^strong_earthquakes$mag) * 3
+map_resized <- leaflet(width = '100%') %>%
+  setView(lng = japan_lng, lat = japan_lat, zoom = 5) %>%
+  addProviderTiles("Esri.WorldStreetMap") %>%
+  addCircles(
+    data = strong_earthquakes,
+    radius = circle_radius,
+    color = "#E01111",
+    fillColor = "#E01111",
+    fillOpacity = 0.4,
+    popup = paste0(
+      "<strong>Place: </strong>", strong_earthquakes$place, "<br>",
+      "<strong>Time: </strong>", strong_earthquakes$time, "<br>",
+      "<strong>Magnitude: </strong>", strong_earthquakes$mag, "<br>",
+      "<strong>Depth (km): </strong>", strong_earthquakes$depth, "<br>"
+  ))
+map_resized
+```
+
+
+#### Earthquake heatmap
+
+```{r}
+#Heatmap to view intensity of earthquakes
+color_scheme <- viridis::cividis(n_distinct(strong_earthquakes$mag))
+myColor = colorFactor(color_scheme, strong_earthquakes$mag)
+
+strong_earthquakes %>%
+  leaflet(width = '100%') %>%
+  setView(lng = japan_lng, lat = japan_lat, zoom = 5) %>%
+  addProviderTiles("CartoDB.Voyager") %>%
+  addCircleMarkers(~as.numeric(longitude),
+                   ~as.numeric(latitude),
+                   fillColor = ~myColor(mag),
+                   stroke = FALSE, fillOpacity = 0.8,
+                   clusterOptions = markerClusterOptions(),
+                   popup = paste0(
+                     "<strong>Place: </strong>", strong_earthquakes$place, "<br>",
+                     "<strong>Time: </strong>", strong_earthquakes$time, "<br>",
+                     "<strong>Magnitude: </strong>", strong_earthquakes$mag, "<br>",
+                     "<strong>Depth (km): </strong>", strong_earthquakes$depth, "<br>"
+)) %>%
+  addHeatmap(lng=~as.numeric(longitude),
+           lat=~as.numeric(latitude),
+           radius = 8)
+
+
+```
